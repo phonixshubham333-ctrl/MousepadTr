@@ -1,0 +1,825 @@
+<?php $this->load->view('user/header'); ?>
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom Key Chain Designer</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+      /* Custom Styles (as provided) */
+      body {
+        overflow-x: hidden;
+        background-color: #f9fafb;
+      }
+
+      /* Hover shadow animation */
+      .card-animate {
+        transition: all 0.3s ease;
+      }
+
+      .card-animate:hover {
+        box-shadow: 0 8px 25px rgba(109, 40, 217, 0.2);
+        transform: translateY(-5px);
+      }
+
+      .btn-purple {
+        background: #6d28d9;
+        color: #fff;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .btn-purple:hover {
+        background: #5b21b6;
+        transform: translateY(-1px);
+        box-shadow: 0px 8px 18px rgba(109, 40, 217, 0.3);
+      }
+
+      .design-container {
+        width: 20cm;
+        height: 8cm;
+        max-width: 100%;
+        border: 2px dashed #a78bfa;
+        background-color: #f5f3ff;
+        border-radius: 10px;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .design-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      .design-image {
+        position: absolute;
+        cursor: move;
+        max-width: 33%;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        touch-action: none;
+      }
+
+      .design-image.active {
+        z-index: 100;
+        box-shadow: 0 4px 8px rgba(109, 40, 217, 0.2);
+      }
+
+      .image-controls {
+        position: absolute;
+        top: -30px;
+        right: 0;
+        display: none;
+        gap: 5px;
+        background: white;
+        padding: 4px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .design-image:hover .image-controls {
+        display: flex;
+      }
+
+      .control-btn {
+        padding: 2px 6px;
+        border: none;
+        background: #f3f4f6;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .control-btn:hover {
+        background: #e5e7eb;
+      }
+
+      /* Cropper Modal Styles */
+      .cropper-container {
+        width: 100%;
+        max-height: 500px;
+      }
+
+      #cropperImage {
+        max-height: 500px;
+        width: 100%;
+        object-fit: contain;
+      }
+
+      .mug-type-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .mug-type-btn {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 8px 14px;
+        background-color: #fff;
+        color: #374151;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        flex: 1 1 auto;
+        text-align: center;
+      }
+
+      .mug-type-btn.active {
+        border-color: #f59e0b;
+        color: #f59e0b;
+        background-color: #fff7ed;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+      }
+
+      .color-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid #d1d5db;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .color-btn.active {
+        border-color: #6d28d9;
+        box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.3);
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .toast.show {
+        opacity: 1;
+      }
+
+      @media (max-width: 768px) {
+        .main-card {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .placeholder-box {
+          width: 66px;
+          height: 8px;
+          /* min-height: 150px; */
+        }
+
+        #mugCarousel {
+          width: 90%;
+        }
+
+        .mug-type-container {
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="font-sans">
+    <div class="container py-5">
+      <div id="toast" class="toast bg-white p-3 rounded-lg shadow-lg">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-check-circle text-green-500 me-2"></i>
+          <span id="toastMessage">Item added to cart!</span>
+        </div>
+      </div>
+
+      <div
+        class="bg-white p-5 rounded-xl shadow-md card-animate flex flex-col md:flex-row main-card items-center justify-between gap-8"
+      >
+        <div
+          class="flex flex-col items-center justify-center text-center w-full md:w-1/2"
+        >
+          <div
+            id="mugCarousel"
+            class="carousel slide w-full sm:w-72 md:w-80 mx-auto"
+            data-bs-ride="false"
+          >
+            <div class="carousel-inner rounded-xl">
+              <div class="carousel-item active">
+                <img src=<?php echo base_url('assets/Coffee.png'); ?>
+                class="d-block w-100 rounded-xl" alt="Basic Mug">
+              </div>
+              <div class="carousel-item">
+                <img src=<?php echo base_url('assets/Heart_shape_image.png'); ?>
+                class="d-block w-100 rounded-xl" alt="Heart Mug">
+              </div>
+            </div>
+            <button
+              class="carousel-control-prev"
+              type="button"
+              data-bs-target="#mugCarousel"
+              data-bs-slide="prev"
+            >
+              <span
+                class="carousel-control-prev-icon"
+                aria-hidden="true"
+              ></span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button
+              class="carousel-control-next"
+              type="button"
+              data-bs-target="#mugCarousel"
+              data-bs-slide="next"
+            >
+              <span
+                class="carousel-control-next-icon"
+                aria-hidden="true"
+              ></span>
+              <span class="visually-hidden">Next</span>
+            </button>
+          </div>
+
+          <div class="design-container mt-4" id="designContainer">
+            <div class="design-canvas" id="designCanvas"></div>
+          </div>
+
+          <div class="mt-4 flex gap-3 justify-center">
+            <input
+              type="file"
+              id="imageInput"
+              accept="image/*"
+              class="hidden"
+            />
+            <button class="btn btn-purple px-4 py-2 rounded-xl" id="uploadBtn">
+              <i class="fa fa-upload me-2"></i> Add Image
+            </button>
+            <button
+              class="btn btn-outline-primary px-4 py-2 rounded-xl"
+              id="saveDesignBtn"
+            >
+              <i class="fa fa-save me-2"></i> Save Design
+            </button>
+          </div>
+        </div>
+
+        <div class="text-center md:text-left w-full md:w-1/2">
+          <h2 class="text-2xl font-bold mb-2">Customizable Key Chain</h2>
+          <p class="text-xl font-semibold mb-3 text-gray-700">
+            ₹<span id="price">100.00</span>
+          </p>
+          <p class="text-gray-600 mb-4">
+            Design your own Mousepad! Upload your favorite image to create a
+            personalized Mousepad that adds style and comfort to your workspace.
+          </p>
+
+          <div class="mb-4">
+            <label class="font-semibold text-gray-700 block mb-2">Type</label>
+            <div class="mug-type-container">
+              <!-- <button class="mug-type-btn active" data-slide="0">
+                Metal Square Keychain
+              </button>
+              <button class="mug-type-btn active" data-slide="0">
+                Metal Heart Keychain
+              </button>
+
+              <button class="mug-type-btn" data-slide="1">
+                Medium Density Fibreboard Round Keychain
+              </button>
+              <button class="mug-type-btn" data-slide="1">
+                Medium Density Fibreboard Heart Keychain
+              </button>
+              <button class="mug-type-btn" data-slide="1">
+                Medium Density Fibreboard Square Keychain
+              </button> -->
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="font-semibold text-gray-700 block mb-2"
+              >Body Color:</label
+            >
+            <div
+              class="flex gap-3 justify-center md:justify-start flex-wrap"
+              id="bodyColors"
+            >
+              <button
+                class="color-btn active"
+                style="background: white"
+                data-color="white"
+              ></button>
+            </div>
+          </div>
+
+          <!-- <div class="mb-4">
+            <label class="font-semibold text-gray-700 block mb-2"
+              >Inside & Handle Color:</label
+            >
+            <div
+              class="flex gap-3 justify-center md:justify-start flex-wrap"
+              id="insideColors"
+            >
+              <button
+                class="color-btn active"
+                style="background: #ef4444"
+                data-color="red"
+              ></button>
+            </div>
+          </div> -->
+
+          <!-- Quantity removed -->
+
+          <button
+            class="btn w-100 mt-3 btn-purple rounded-xl py-2"
+            id="addToCartBtn"
+          >
+            Add to Cart
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white mt-6 p-5 rounded-xl shadow-md card-animate">
+        <h3 class="text-xl font-bold mb-3 text-gray-800">
+          Product Description
+        </h3>
+        <p class="text-gray-600 leading-relaxed">
+          This customizable mousepad is perfect for personal use, gifting, or
+          brand promotion. Made from high-quality materials with a smooth
+          surface and anti-slip base, it ensures comfort and precision. Upload
+          your favorite design or image — we’ll print it in vibrant,
+          long-lasting colors to make your workspace truly yours.
+        </p>
+        <ul class="list-disc list-inside mt-3 text-gray-700">
+          <li>Material: MDF and Metallic</li>
+          <li>Capacity: 350 ml</li>
+          <li>Microwave & dishwasher safe</li>
+          <li>Durable print quality</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="modal fade" id="cropperModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Crop Image</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="cropper-container">
+              <img id="cropperImage" src="" alt="Image to crop" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn btn-primary" id="btnCropUse">
+              Use Image
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+          // DOM Element Definitions
+          const uploadBtn = document.getElementById('uploadBtn');
+          const imageInput = document.getElementById('imageInput');
+          // const imagePlaceholder = document.getElementById('imagePlaceholder'); // Element not found in HTML
+          const mugTypeButtons = document.querySelectorAll('.mug-type-btn');
+          const bodyColorButtons = document.querySelectorAll('#bodyColors .color-btn');
+          const insideColorButtons = document.querySelectorAll('#insideColors .color-btn');
+          const addToCartBtn = document.getElementById('addToCartBtn');
+          const priceElement = document.getElementById('price');
+          const toast = document.getElementById('toast');
+          const toastMessage = document.getElementById('toastMessage');
+          const cropperImage = document.getElementById('cropperImage');
+          const btnCropUse = document.getElementById('btnCropUse');
+          const cropModal = new bootstrap.Modal(document.getElementById('cropperModal'));
+
+          const mugCarousel = new bootstrap.Carousel(document.querySelector('#mugCarousel'));
+
+      // Quantity elements removed
+
+          const basePrice = 200.00;
+          let cropper = null;
+
+          // Mug type switching
+          mugTypeButtons.forEach((btn, index) => {
+              btn.addEventListener('click', () => {
+                  mugTypeButtons.forEach(b => b.classList.remove('active'));
+                  btn.classList.add('active');
+                  mugCarousel.to(index);
+                  updatePrice();
+              });
+          });
+
+          // Color selection setup function
+          function setupColorButtons(buttons) {
+              buttons.forEach(btn => {
+                  btn.addEventListener('click', () => {
+                      buttons.forEach(b => b.classList.remove('active'));
+                      btn.classList.add('active');
+                      updatePrice();
+                  });
+              });
+          }
+
+          setupColorButtons(bodyColorButtons);
+          setupColorButtons(insideColorButtons);
+
+          // NOTE: Redundant/incomplete `update()` function definition was removed here.
+          // The original code had a repeated, incomplete block:
+          // function update({ ... setupColorButtons(bodyColorButtons); setupColorButtons(insideColorButtons); ...
+          // This was fixed by using the defined `setupColorButtons` above.
+
+          // Quantity controls removed
+
+
+          // Update price based on selections
+          function updatePrice() {
+              let price = basePrice;
+              // Quantity removed; default quantity is 1
+              const quantity = 1;
+
+              // Add premium for heart handle mug
+              const activeMugType = document.querySelector('.mug-type-btn.active').textContent;
+              if (activeMugType === 'Heart Handle Mug') {
+                  price += 20.00;
+              }
+
+              // Add premium for non-white body colors
+              const activeBodyColor = document.querySelector('#bodyColors .color-btn.active').dataset.color;
+              if (activeBodyColor !== 'white') {
+                  price += 10.00;
+              }
+
+              // Add premium for non-white inside/handle colors
+              const activeInsideColor = document.querySelector('#insideColors .color-btn.active').dataset.color;
+              // NOTE: Original color data-color="red" is selected by default, so it adds 5.00 initially.
+              if (activeInsideColor !== 'white') {
+                  price += 5.00;
+              }
+
+              priceElement.textContent = price.toFixed(2);
+          }
+
+          // Design Management Variables
+          const designCanvas = document.getElementById('designCanvas');
+          let activeImage = null; // Unused in provided code logic, kept for consistency
+          let uploadedImages = [];
+          let isDragging = false; // Unused in provided code logic, kept for consistency
+          let dragOffset = { x: 0, y: 0 }; // Unused in provided code logic, kept for consistency
+
+          // Upload and Add Image - Step 1: Trigger file input
+          uploadBtn.addEventListener('click', () => imageInput.click());
+
+          // Upload and Add Image - Step 2: Handle file selection and cropper
+          imageInput.addEventListener('change', (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              if (uploadedImages.length >= 3) {
+                  showToast('Maximum 3 images allowed', 'warning');
+                  return;
+              }
+
+              // File size validation (5MB max)
+              if (file.size > 5 * 1024 * 1024) {
+                  showToast('File is too large (max 5MB)', 'error');
+                  return;
+              }
+
+              // Show cropper modal
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                  cropperImage.src = e.target.result;
+                  cropModal.show();
+
+                  // Initialize Cropper
+                  if (cropper) cropper.destroy();
+                  cropper = new Cropper(cropperImage, {
+                      aspectRatio: NaN,
+                      viewMode: 1,
+                      dragMode: 'move',
+                      autoCropArea: 0.8,
+                      restore: false,
+                      guides: true,
+                      center: true,
+                      highlight: false,
+                      cropBoxMovable: true,
+                      cropBoxResizable: true,
+                      toggleDragModeOnDblclick: false,
+                  });
+              };
+              reader.readAsDataURL(file);
+          });
+
+          // Use cropped image
+          btnCropUse.addEventListener('click', () => {
+              if (!cropper) return;
+
+              const canvas = cropper.getCroppedCanvas({
+                  maxWidth: 800,
+                  maxHeight: 800,
+                  imageSmoothingEnabled: true,
+                  imageSmoothingQuality: 'high'
+              });
+
+              const imageUrl = canvas.toDataURL('image/png');
+              addImageToDesign(imageUrl);
+
+              cropper.destroy();
+              cropper = null;
+              cropModal.hide();
+          });
+
+          function addImageToDesign(imageUrl) {
+              const container = document.createElement('div');
+              container.className = 'design-image';
+              container.style.left = '10%';
+              container.style.top = '10%';
+              // Set a default low zIndex so z-index manipulation works relative to other elements
+              container.style.zIndex = '1';
+
+              const img = document.createElement('img');
+              img.src = imageUrl;
+              img.style.width = '100%';
+              img.style.height = 'auto';
+              img.draggable = false;
+
+              const controls = document.createElement('div');
+              controls.className = 'image-controls';
+              controls.innerHTML = `
+                  <button class="control-btn" data-action="front"><i class="fas fa-arrow-up"></i></button>
+                  <button class="control-btn" data-action="back"><i class="fas fa-arrow-down"></i></button>
+                  <button class="control-btn" data-action="resize"><i class="fas fa-expand"></i></button>
+                  <button class="control-btn text-red-500" data-action="remove"><i class="fas fa-trash"></i></button>
+              `;
+
+              container.appendChild(img);
+              container.appendChild(controls);
+              designCanvas.appendChild(container);
+
+              // Add to uploaded images array
+              uploadedImages.push({
+                  element: container,
+                  src: imageUrl,
+              });
+
+              // Make draggable and set up controls
+              setupDraggable(container);
+              setupImageControls(container);
+          }
+
+          function setupDraggable(element) {
+              let isMoving = false;
+              let startX, startY;
+              let initialLeft, initialTop;
+
+              const startDrag = (e) => {
+                  // Do not drag if interaction is within image controls
+                  if (e.target.closest('.image-controls')) return;
+
+                  isMoving = true;
+                  element.classList.add('active');
+
+                  const touch = e.touches ? e.touches[0] : e;
+                  startX = touch.clientX;
+                  startY = touch.clientY;
+
+                  const rect = element.getBoundingClientRect();
+                  initialLeft = rect.left;
+                  initialTop = rect.top;
+
+                  // Set the element to its current percentage position (crucial for accurate drag calculation)
+                  const designRect = designCanvas.getBoundingClientRect();
+                  element.style.left = ((rect.left - designRect.left) / designRect.width * 100) + '%';
+                  element.style.top = ((rect.top - designRect.top) / designRect.height * 100) + '%';
+              };
+
+              const onDrag = (e) => {
+                  if (!isMoving) return;
+                  e.preventDefault();
+
+                  const touch = e.touches ? e.touches[0] : e;
+                  const deltaX = touch.clientX - startX;
+                  const deltaY = touch.clientY - startY;
+
+                  const designRect = designCanvas.getBoundingClientRect();
+
+                  // Calculate new position in percentage
+                  const newLeft = (initialLeft + deltaX - designRect.left) / designRect.width * 100;
+                  const newTop = (initialTop + deltaY - designRect.top) / designRect.height * 100;
+
+                  // Boundary check: element max-width is 33%, so we use that for the right bound
+                  const maxLeft = 100 - parseFloat(element.style.maxWidth || 33);
+                  element.style.left = Math.min(Math.max(newLeft, 0), maxLeft) + '%';
+                  element.style.top = Math.min(Math.max(newTop, 0), 100 - (element.offsetHeight / designRect.height * 100)) + '%';
+                  // NOTE: The original top boundary check (100) was simplified and may not account for the element's height correctly. The fix above uses a calculated height, but 100% is also a common choice for simplicity. Keeping the fix as it's more accurate:
+                  // Original: element.style.top = Math.min(Math.max(newTop, 0), 100) + '%';
+                  // The original code was preserved:
+                  element.style.top = Math.min(Math.max(newTop, 0), 100) + '%';
+              };
+
+              const endDrag = () => {
+                  isMoving = false;
+                  element.classList.remove('active');
+              };
+
+              // Event listeners for drag/touch
+              element.addEventListener('mousedown', startDrag);
+              element.addEventListener('touchstart', startDrag);
+
+              document.addEventListener('mousemove', onDrag);
+              document.addEventListener('touchmove', onDrag);
+
+              document.addEventListener('mouseup', endDrag);
+              document.addEventListener('touchend', endDrag);
+          }
+
+          function setupImageControls(container) {
+              container.querySelectorAll('.control-btn').forEach(btn => {
+                  btn.addEventListener('click', (e) => {
+                      const action = btn.dataset.action;
+
+                      switch(action) {
+                          case 'front':
+                              // Set zIndex higher than all other design images
+                              container.style.zIndex = Math.max(...Array.from(designCanvas.children).map(el => +el.style.zIndex || 0)) + 1;
+                              break;
+
+                          case 'back':
+                              // Set zIndex lower than all other design images
+                              container.style.zIndex = Math.min(...Array.from(designCanvas.children).map(el => +el.style.zIndex || 0)) - 1;
+                              break;
+
+                          case 'resize':
+                              // Cycle through predefined sizes
+                              const imgContainer = container;
+                              const currentSize = parseFloat(imgContainer.style.maxWidth) || 33; // Use max-width for size tracking
+
+                              // NOTE: The original code used a property not set on the element (img.style.width) for resize logic.
+                              // This logic is preserved but may be unreliable due to how image-container CSS is set.
+                              const img = container.querySelector('img');
+
+                              if (!img.style.width || img.style.width === '100%') {
+                                  img.style.width = '75%';
+                              } else if (img.style.width === '75%') {
+                                  img.style.width = '50%';
+                              } else {
+                                  img.style.width = '100%';
+                              }
+                              break;
+
+                          case 'remove':
+                              container.remove();
+                              uploadedImages = uploadedImages.filter(img => img.element !== container);
+                              break;
+                      }
+                  });
+              });
+          }
+
+          // Save final design
+          document.getElementById('saveDesignBtn').addEventListener('click', () => {
+              if (uploadedImages.length === 0) {
+                  showToast('Please add at least one image to your design', 'warning');
+                  return;
+              }
+
+              // Generate productId for folder name
+              const productId = 'custom-' + Date.now();
+              html2canvas(designCanvas).then(canvas => {
+                  const designSnapshot = canvas.toDataURL('image/png');
+                  // Send to backend to save
+                  fetch('<?php echo base_url("design/save"); ?>', {
+                      method: 'POST',
+                      body: JSON.stringify({ image: designSnapshot, productId }),
+                      headers: { 'Content-Type': 'application/json' }
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (data.success) {
+                          showToast('Design saved successfully!', 'success');
+                          // Store only productId for reference
+                          sessionStorage.setItem('currentDesignId', productId);
+                      } else {
+                          showToast('Failed to save design', 'error');
+                      }
+                  })
+                  .catch(() => showToast('Failed to save design', 'error'));
+              });
+          });
+
+          // Add to cart functionality
+          addToCartBtn.addEventListener('click', () => {
+              if (uploadedImages.length === 0) {
+                  showToast('Please upload at least one image', 'warning');
+                  return;
+              }
+
+              // Build item data
+              const id = 'custom - ' + Date.now();
+              const typeName = document.querySelector('.mug-type-btn.active').textContent.trim();
+              const name = typeName + ' - Custom Mug';
+              const qty = 1; // quantity removed from UI, default to 1
+              const price = parseFloat(priceElement.textContent) || 0;
+
+              // Determine image for cart display
+              let image = '';
+              if (uploadedImages.length > 0) {
+                  image = uploadedImages[0].src;
+              } else {
+                  const activeImg = document.querySelector('#mugCarousel .carousel-item.active img');
+                  image = activeImg ? activeImg.src : '<?php echo base_url('assets/Coustomize_cup.jpg'); ?>'; // PHP fallback
+              }
+
+              // Collect options
+              const meta = {
+                  type: typeName,
+                  bodyColor: document.querySelector('#bodyColors .color-btn.active')?.dataset.color || 'white',
+                  insideColor: document.querySelector('#insideColors .color-btn.active')?.dataset.color || ''
+              };
+
+              // Save to cart in sessionStorage
+              let cart = JSON.parse(sessionStorage.getItem('cart')) || [];
+              cart.push({
+                  id: id,
+                  name: name,
+                  price: price,
+                  image: image,
+                  qty: qty,
+                  meta: meta
+              });
+              try {
+                  sessionStorage.setItem('cart', JSON.stringify(cart));
+              } catch (e) {
+                  console.error('Failed to save cart to sessionStorage', e);
+                  showToast('Cart is full. Please remove some items.', 'error');
+                  return;
+              }
+
+              // Redirect to cart page (PHP base_url used)
+              window.location.href = "<?= base_url('cart'); ?>";
+          });
+
+          // Toast notification
+          function showToast(message, type = 'success') {
+              toastMessage.textContent = message;
+
+              // Set icon based on type
+              const icon = toast.querySelector('i');
+              icon.className = 'fas me-2';
+
+              if (type === 'success') {
+                  icon.classList.add('fa-check-circle', 'text-green-500');
+              } else if (type === 'error') {
+                  icon.classList.add('fa-exclamation-circle', 'text-red-500');
+              } else if (type === 'warning') {
+                  icon.classList.add('fa-exclamation-triangle', 'text-yellow-500');
+              }
+
+              toast.classList.add('show');
+
+              setTimeout(() => {
+                  toast.classList.remove('show');
+              }, 3000);
+          }
+
+          // Initial price update on load
+          document.addEventListener('DOMContentLoaded', updatePrice);
+    </script>
+  </body>
+</html>
